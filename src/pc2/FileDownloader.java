@@ -25,6 +25,7 @@ public class FileDownloader{
 					Fichero.descargaFichero(datos[0] + "/" + datos[1] + ".part" + i,"Descargas/" + datos[1] + ".part" + i);
 				}
 				Fichero.mergeFile("Descargas",datos[1]);
+				Fichero.eliminarFicheros("Descargas",datos[1]);
 				linea = b.readLine();
 			}
 		}catch(FileNotFoundException e){
