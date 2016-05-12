@@ -109,6 +109,7 @@ public class FileDownloader {
 	 *            nombre del fichero a unir
 	 */
 	private void mergeFile(String dir, String fileStart) {
+		latchDescarga.countDown();
 		FileInputStream fis = null;
 		FileOutputStream fos = null;
 		try {
@@ -137,7 +138,7 @@ public class FileDownloader {
 			fis = null;
 			fos = null;
 		}
-		latchDescarga.countDown();
+		
 	}
 
 	/**
