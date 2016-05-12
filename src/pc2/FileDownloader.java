@@ -15,6 +15,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Semaphore;
 import java.util.regex.Pattern;
 
 public class FileDownloader {
@@ -23,7 +24,7 @@ public class FileDownloader {
 	private int numMaxDescargas;
 	private static CountDownLatch latchMerge;
 	private static CountDownLatch latchDescarga;
-	private static CountDownLatch latchMaxDescargas;
+	private static Semaphore semMaxDescargas;
 
 	public FileDownloader(int numMaxDescargas) {
 		super();
@@ -36,7 +37,7 @@ public class FileDownloader {
 			BufferedReader b = new BufferedReader(f);
 			String linea = b.readLine();
 			latchDescarga = new CountDownLatch(1);
-			latchMaxDescargas = new CountDownLatch(numMaxDescargas);
+			semMaxDescargas = new Semaphore(numMaxDescargas);
 			while (!(linea == null)) {
 				if (latchDescarga.getCount() != 1)
 					latchDescarga.await();
@@ -46,7 +47,7 @@ public class FileDownloader {
 				int numPartes = Integer.parseInt(datos[2]);
 				latchMerge = new CountDownLatch(numPartes);
 				String num = "";
-				for (int i = 0; i < numPartes && latchMaxDescargas.getCount() >= 0; i++) {
+				for (int i = 0; i < numPartes; i++) {
 					if (i < 10)
 						num = "0" + i;
 					else
@@ -78,6 +79,7 @@ public class FileDownloader {
 	}
 
 	private void downloadFile(String url, String path) throws InterruptedException {
+		semMaxDescargas.acquire();
 		try {
 			URL website = new URL(url);
 			File folder = new File(path.split("/")[0]);
@@ -92,7 +94,7 @@ public class FileDownloader {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		latchMaxDescargas.countDown();
+		semMaxDescargas.release();
 		latchMerge.countDown();
 	}
 
