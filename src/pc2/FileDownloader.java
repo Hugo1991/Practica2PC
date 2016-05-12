@@ -20,10 +20,10 @@ import java.util.regex.Pattern;
 public class FileDownloader {
 	private static final String RUTADESCARGA = "downloads";
 	private String fichero;
-	private int numMaxDescargas = 3;
-	private static CountDownLatch latchDescarga;
+	private int numMaxDescargas;
 	private static CountDownLatch latchMerge;
-	private static CountDownLatch latchElimina;
+	private static CountDownLatch latchDescarga;
+	private static CountDownLatch latchMaxDescargas;
 
 	public FileDownloader(int numMaxDescargas) {
 		super();
@@ -31,21 +31,22 @@ public class FileDownloader {
 	}
 
 	public void startDownload() throws InterruptedException {
-		FileReader f;
 		try {
-			f = new FileReader(fichero);
+			FileReader f = new FileReader(fichero);
 			BufferedReader b = new BufferedReader(f);
 			String linea = b.readLine();
+			latchDescarga = new CountDownLatch(1);
+			latchMaxDescargas = new CountDownLatch(numMaxDescargas);
 			while (!(linea == null)) {
-				latchElimina = new CountDownLatch(1);
-				latchDescarga = new CountDownLatch(numMaxDescargas);
+				if (latchDescarga.getCount() != 1)
+					latchDescarga.await();
 				String[] datos = linea.split("\\s+");
 				String ruta = datos[0];
 				String nombre = datos[1];
 				int numPartes = Integer.parseInt(datos[2]);
 				latchMerge = new CountDownLatch(numPartes);
 				String num = "";
-				for (int i = 0; i < numPartes; i++) {
+				for (int i = 0; i < numPartes && latchMaxDescargas.getCount() >= 0; i++) {
 					if (i < 10)
 						num = "0" + i;
 					else
@@ -62,10 +63,10 @@ public class FileDownloader {
 							}
 						}
 					}, "hilo" + i).start();
+
 				}
 				latchMerge.await();
 				mergeFile(RUTADESCARGA, nombre);
-				latchElimina.await();
 				deleteFiles(RUTADESCARGA, nombre);
 				linea = b.readLine();
 			}
@@ -91,6 +92,7 @@ public class FileDownloader {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+		latchMaxDescargas.countDown();
 		latchMerge.countDown();
 	}
 
@@ -104,13 +106,17 @@ public class FileDownloader {
 	 *            nombre del fichero a unir
 	 */
 	private void mergeFile(String dir, String fileStart) {
+		FileInputStream fis = null;
+		FileOutputStream fos = null;
 		try {
 			File ofile = new File(dir + "/" + fileStart);
+			if (ofile.exists())
+				ofile.delete();
 			int bytesRead = 0;
-			FileOutputStream fos = new FileOutputStream(ofile, true);
+			fos = new FileOutputStream(ofile, true);
 			for (String fileName : dameListaFicheros(dir, fileStart)) {
 				File f = new File(dir + "/" + fileName);
-				FileInputStream fis = new FileInputStream(f);
+				fis = new FileInputStream(f);
 				byte[] fileBytes = new byte[(int) f.length()];
 				bytesRead = fis.read(fileBytes, 0, (int) f.length());
 				assert (bytesRead == fileBytes.length);
@@ -121,12 +127,14 @@ public class FileDownloader {
 				fis.close();
 				fis = null;
 			}
+
 			fos.close();
 			fos = null;
-		} catch (Exception exception) {
-			exception.printStackTrace();
+		} catch (IOException e) {
+			fis = null;
+			fos = null;
 		}
-		latchElimina.countDown();
+		latchDescarga.countDown();
 	}
 
 	/**
@@ -159,5 +167,15 @@ public class FileDownloader {
 
 	public void setFichero(String fichero) {
 		this.fichero = fichero;
+	}
+
+	public static void main(String[] args) {
+		FileDownloader fichero = new FileDownloader(3);
+		fichero.setFichero("entrada.txt");
+		try {
+			fichero.startDownload();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
 	}
 }
