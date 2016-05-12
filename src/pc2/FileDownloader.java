@@ -29,6 +29,8 @@ public class FileDownloader {
 	public FileDownloader(int numMaxDescargas) {
 		super();
 		this.numMaxDescargas = numMaxDescargas;
+		latchDescarga = new CountDownLatch(1);
+		semMaxDescargas = new Semaphore(numMaxDescargas);
 	}
 
 	public void startDownload() throws InterruptedException {
@@ -36,8 +38,7 @@ public class FileDownloader {
 			FileReader f = new FileReader(fichero);
 			BufferedReader b = new BufferedReader(f);
 			String linea = b.readLine();
-			latchDescarga = new CountDownLatch(1);
-			semMaxDescargas = new Semaphore(numMaxDescargas);
+			
 			while (!(linea == null)) {
 				if (latchDescarga.getCount() != 1)
 					latchDescarga.await();
