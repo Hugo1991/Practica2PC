@@ -41,7 +41,6 @@ public class FileDownloader {
 			FileReader f = new FileReader(fichero);
 			BufferedReader b = new BufferedReader(f);
 			String linea = b.readLine();
-			
 			while (!(linea == null)) {
 				String[] datos = linea.split("\\s+");
 				String ruta = datos[0];
@@ -57,13 +56,9 @@ public class FileDownloader {
 						num = String.valueOf(i);
 					String rutaOrigen = ruta + "/" + nombre + ".part" + i;
 					String rutaDestino = RUTADESCARGA + "/" + nombre + ".part" + num;
-
 					new DownloadFile(rutaOrigen, rutaDestino, merge);
-
 				}
-				
 				latchDescarga.await();
-				
 				linea = b.readLine();
 			}
 		} catch (FileNotFoundException e) {
@@ -84,8 +79,7 @@ public class FileDownloader {
 	 * @param fileStart
 	 *            nombre del fichero a borrar
 	 */
-	static void deleteFiles(String dir, String fileStart) {
-
+	public static void deleteFiles(String dir, String fileStart) {
 		for (String fileName : dameListaFicheros(dir, fileStart))
 			new File(dir + "/" + fileName).delete();
 	}
@@ -101,7 +95,6 @@ public class FileDownloader {
 	 * @return array de nombre de ficheros
 	 */
 	static String[] dameListaFicheros(String dir, String fileStart) {
-
 		String[] files = new File(dir)
 				.list((path, name) -> Pattern.matches(fileStart + Pattern.quote(".") + "part.*", name));
 		Arrays.sort(files);
@@ -161,24 +154,19 @@ class MergeFile implements Runnable {
 				fis.close();
 				fis = null;
 			}
-
 			fos.close();
 			fos = null;
 		} catch (IOException e) {
 			fis = null;
 			fos = null;
 		}
-
 	}
 
 	@Override
 	public void run() {
-
-		System.out.println("Descargado fichero "+fichero);
+		System.out.println("Descargado fichero " + fichero);
 		mergeFile(dir, fichero);
 		FileDownloader.deleteFiles(dir, fichero);
-		
-
 	}
 }
 
@@ -192,23 +180,6 @@ class DownloadFile implements Runnable {
 		this.path = path;
 		this.merge = merge;
 		new Thread(this).start();
-	}
-
-	@Override
-	public void run() {
-		downloadFile(url, path);
-		FileDownloader.getLatchDescarga().countDown();
-
-		try {
-			merge.await();
-		} catch (InterruptedException e) {
-
-			e.printStackTrace();
-		} catch (BrokenBarrierException e) {
-
-			e.printStackTrace();
-		}
-
 	}
 
 	private void downloadFile(String url, String path) {
@@ -231,4 +202,18 @@ class DownloadFile implements Runnable {
 			e.printStackTrace();
 		}
 	}
+
+	@Override
+	public void run() {
+		downloadFile(url, path);
+		FileDownloader.getLatchDescarga().countDown();
+		try {
+			merge.await();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		} catch (BrokenBarrierException e) {
+			e.printStackTrace();
+		}
+	}
+
 }
